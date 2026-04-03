@@ -10,9 +10,17 @@ type spinner interface {
 
 type noopSpinner struct{}
 
-func (noopSpinner) Success(string) {}
-func (noopSpinner) Fail(string)    {}
-func (noopSpinner) Warning(string) {}
+func (noopSpinner) Success(string) {
+	// no-op: spinner is disabled in raw output mode
+}
+
+func (noopSpinner) Fail(string) {
+	// no-op: spinner is disabled in raw output mode
+}
+
+func (noopSpinner) Warning(string) {
+	// no-op: spinner is disabled in raw output mode
+}
 
 type ptermSpinner struct {
 	inner *pterm.SpinnerPrinter
