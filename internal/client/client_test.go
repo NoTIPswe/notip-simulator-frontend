@@ -475,3 +475,59 @@ func TestListGateways_InvalidJSONResponse(t *testing.T) {
 		t.Fatal("expected decode error, got nil")
 	}
 }
+
+func TestBulkCreateGateways_InvalidJSONResponse(t *testing.T) {
+	_, c := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte("not-json"))
+	})
+
+	_, err := c.BulkCreateGateways(client.BulkCreateGatewaysRequest{
+		Count:      1,
+		FactoryID:  "f-1",
+		FactoryKey: "k-1",
+	})
+	if err == nil {
+		t.Fatal("expected decode error, got nil")
+	}
+}
+
+func TestGetGateway_InvalidJSONResponse(t *testing.T) {
+	_, c := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("not-json"))
+	})
+
+	_, err := c.GetGateway("uuid-1")
+	if err == nil {
+		t.Fatal("expected decode error, got nil")
+	}
+}
+
+func TestAddSensor_InvalidJSONResponse(t *testing.T) {
+	_, c := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte("not-json"))
+	})
+
+	_, err := c.AddSensor(1, client.AddSensorRequest{Type: "temperature", Algorithm: "constant"})
+	if err == nil {
+		t.Fatal("expected decode error, got nil")
+	}
+}
+
+func TestListSensors_InvalidJSONResponse(t *testing.T) {
+	_, c := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("not-json"))
+	})
+
+	_, err := c.ListSensors(1)
+	if err == nil {
+		t.Fatal("expected decode error, got nil")
+	}
+}
