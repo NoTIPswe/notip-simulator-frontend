@@ -267,10 +267,10 @@ func init() {
 	gatewaysCreateCmd.Flags().String(flagFactoryID, "", "Factory ID (required)")
 	gatewaysCreateCmd.Flags().String(flagFactoryKey, "", "Factory key (required)")
 	gatewaysCreateCmd.Flags().String("serial", "", "Serial number (required)")
-	gatewaysCreateCmd.Flags().String("model", "", "Gateway model")
-	gatewaysCreateCmd.Flags().String("firmware", "", "Firmware version")
-	gatewaysCreateCmd.Flags().Int("freq", 1000, "Send frequency in milliseconds")
-	for _, f := range []string{flagFactoryID, flagFactoryKey, "serial"} {
+	gatewaysCreateCmd.Flags().String("model", "", "Gateway model (required)")
+	gatewaysCreateCmd.Flags().String("firmware", "", "Firmware version (required)")
+	gatewaysCreateCmd.Flags().Int("freq", 1000, "Send frequency in milliseconds (required)")
+	for _, f := range []string{flagFactoryID, flagFactoryKey, "serial", "model", "firmware", "freq"} {
 		mustMarkRequired(gatewaysCreateCmd, f)
 	}
 
@@ -278,10 +278,10 @@ func init() {
 	gatewaysBulkCmd.Flags().Int("count", 1, "Number of gateways to create (required)")
 	gatewaysBulkCmd.Flags().String(flagFactoryID, "", "Factory ID (required)")
 	gatewaysBulkCmd.Flags().String(flagFactoryKey, "", "Factory key (required)")
-	gatewaysBulkCmd.Flags().String("model", "", "Gateway model")
-	gatewaysBulkCmd.Flags().String("firmware", "", "Firmware version")
-	gatewaysBulkCmd.Flags().Int("freq", 1000, "Send frequency in milliseconds")
-	for _, f := range []string{"count", flagFactoryID, flagFactoryKey} {
+	gatewaysBulkCmd.Flags().String("model", "", "Gateway model (required)")
+	gatewaysBulkCmd.Flags().String("firmware", "", "Firmware version (required)")
+	gatewaysBulkCmd.Flags().Int("freq", 1000, "Send frequency in milliseconds (required)")
+	for _, f := range []string{"count", flagFactoryID, flagFactoryKey, "model", "firmware", "freq"} {
 		mustMarkRequired(gatewaysBulkCmd, f)
 	}
 }

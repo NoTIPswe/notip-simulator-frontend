@@ -74,16 +74,16 @@ func TestGatewaysCreateFlagToJSONMapping(t *testing.T) {
 		testFlagFactoryID, "fac-42",
 		testFlagFactoryKey, "secret-key",
 		flagSerialArg, "SN-XYZ",
-		"--model", "GW-PRO",
-		"--firmware", "3.0.1",
-		"--freq", "250",
+		testFlagModel, "GW-PRO",
+		testFlagFirmware, "3.0.1",
+		testFlagFreq, "250",
 	)
 	if err != nil {
 		t.Fatalf("gateways create failed: %v", err)
 	}
 }
 
-func TestGatewaysCreateDefaultFreqIs1000(t *testing.T) {
+func TestGatewaysCreateFreqMapping(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		body := readBody(t, r)
 		checkKey(t, body, "sendFrequencyMs", float64(1000))
@@ -94,27 +94,25 @@ func TestGatewaysCreateDefaultFreqIs1000(t *testing.T) {
 		testFlagFactoryID, "f",
 		testFlagFactoryKey, "k",
 		flagSerialArg, "SN",
+		testFlagModel, "GW-X",
+		testFlagFirmware, "1.0.0",
+		testFlagFreq, "1000",
 	)
 	if err != nil {
 		t.Fatalf(fmtUnexpectedError, err)
 	}
 }
 
-func TestGatewaysCreateOptionalFieldsOmittedWhenNotProvided(t *testing.T) {
-	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
-		body := readBody(t, r)
-		checkAbsent(t, body, "model")
-		checkAbsent(t, body, "firmwareVersion")
-		writeJSON(w, http.StatusCreated, map[string]any{"id": 1})
-	})
-
+func TestGatewaysCreateMissingModelFails(t *testing.T) {
 	err := runCmd("gateways", "create",
 		testFlagFactoryID, "f",
 		testFlagFactoryKey, "k",
 		flagSerialArg, "SN",
+		testFlagFirmware, "1.0.0",
+		testFlagFreq, "1000",
 	)
-	if err != nil {
-		t.Fatalf(fmtUnexpectedError, err)
+	if err == nil {
+		t.Fatal("expected error when --model is missing")
 	}
 }
 
@@ -143,9 +141,9 @@ func TestGatewaysBulkFlagToJSONMapping(t *testing.T) {
 		"--count", "5",
 		testFlagFactoryID, "fac-bulk",
 		testFlagFactoryKey, "key-bulk",
-		"--model", "GW-MINI",
-		"--firmware", "1.2.3",
-		"--freq", "500",
+		testFlagModel, "GW-MINI",
+		testFlagFirmware, "1.2.3",
+		testFlagFreq, "500",
 	)
 	if err != nil {
 		t.Fatalf("gateways bulk failed: %v", err)

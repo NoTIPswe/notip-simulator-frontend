@@ -41,6 +41,9 @@ const (
 	testFlagDuration     = "--duration"
 	testFlagType         = "--type"
 	testFlagAlgorithm    = "--algorithm"
+	testFlagModel        = "--model"
+	testFlagFirmware     = "--firmware"
+	testFlagFreq         = "--freq"
 	bodyNotFound         = "not found"
 	errExpected404       = "expected error on 404"
 	fmtPipeErr           = "pipe: %v"
@@ -130,14 +133,20 @@ func TestCommandTree(t *testing.T) {
 // ── Required-flag validation ──────────────────────────────────────────────────
 
 func TestGatewaysCreateMissingRequiredFlags(t *testing.T) {
-	// factory-id, factory-key, serial are all required
+	// all create flags are required
 	if err := runCmd("gateways", "create"); err == nil {
 		t.Error("expected error when required flags are missing")
 	}
 }
 
 func TestGatewaysBulkMissingCount(t *testing.T) {
-	if err := runCmd("gateways", "bulk", testFlagFactoryID, "f", testFlagFactoryKey, "k"); err == nil {
+	if err := runCmd("gateways", "bulk",
+		testFlagFactoryID, "f",
+		testFlagFactoryKey, "k",
+		testFlagModel, "GW-X",
+		testFlagFirmware, "1.0.0",
+		testFlagFreq, "1000",
+	); err == nil {
 		t.Error("expected error when --count is missing")
 	}
 }
@@ -405,7 +414,14 @@ func TestGatewaysCreateServerError(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 	})
-	err := runCmd("gateways", "create", testFlagFactoryID, "f", testFlagFactoryKey, "k", "--serial", "SN")
+	err := runCmd("gateways", "create",
+		testFlagFactoryID, "f",
+		testFlagFactoryKey, "k",
+		"--serial", "SN",
+		testFlagModel, "GW-X",
+		testFlagFirmware, "1.0.0",
+		testFlagFreq, "1000",
+	)
 	if err == nil {
 		t.Error("expected error when server returns 400")
 	}
@@ -415,7 +431,14 @@ func TestGatewaysBulkServerError(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "server error", http.StatusInternalServerError)
 	})
-	err := runCmd("gateways", "bulk", "--count", "2", testFlagFactoryID, "f", testFlagFactoryKey, "k")
+	err := runCmd("gateways", "bulk",
+		"--count", "2",
+		testFlagFactoryID, "f",
+		testFlagFactoryKey, "k",
+		testFlagModel, "GW-X",
+		testFlagFirmware, "1.0.0",
+		testFlagFreq, "1000",
+	)
 	if err == nil {
 		t.Error("expected error when bulk server returns 500")
 	}
@@ -428,7 +451,14 @@ func TestGatewaysBulkPartialErrors(t *testing.T) {
 			"errors":   []any{"", "factory key mismatch"},
 		})
 	})
-	err := runCmd("gateways", "bulk", "--count", "2", testFlagFactoryID, "f", testFlagFactoryKey, "k")
+	err := runCmd("gateways", "bulk",
+		"--count", "2",
+		testFlagFactoryID, "f",
+		testFlagFactoryKey, "k",
+		testFlagModel, "GW-X",
+		testFlagFirmware, "1.0.0",
+		testFlagFreq, "1000",
+	)
 	if err != nil {
 		t.Fatalf("bulk partial error should succeed at cmd level: %v", err)
 	}
