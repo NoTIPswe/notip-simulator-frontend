@@ -32,16 +32,21 @@ func TestMain(m *testing.M) {
 
 const (
 	testGatewayUUID      = "uuid-1"
+	testSensorUUID       = "s-uuid-1"
 	cmdNetDegradation    = "network-degradation"
 	fmtUnexpectedPath    = "unexpected path: %s"
 	fmtUnexpectedRequest = "unexpected request: %s %s"
 	testFlagFactoryID    = "--factory-id"
 	testFlagFactoryKey   = "--factory-key"
 	testFlagDuration     = "--duration"
+	testFlagType         = "--type"
+	testFlagAlgorithm    = "--algorithm"
 	bodyNotFound         = "not found"
 	errExpected404       = "expected error on 404"
 	fmtPipeErr           = "pipe: %v"
 	fmtWriteErr          = "write: %v"
+	pathGatewayUUID      = "/sim/gateways/" + testGatewayUUID
+	pathGatewaySensors   = "/sim/gateways/5/sensors"
 )
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -124,32 +129,32 @@ func TestCommandTree(t *testing.T) {
 
 // ── Required-flag validation ──────────────────────────────────────────────────
 
-func TestGatewaysCreate_MissingRequiredFlags(t *testing.T) {
+func TestGatewaysCreateMissingRequiredFlags(t *testing.T) {
 	// factory-id, factory-key, serial are all required
 	if err := runCmd("gateways", "create"); err == nil {
 		t.Error("expected error when required flags are missing")
 	}
 }
 
-func TestGatewaysBulk_MissingCount(t *testing.T) {
+func TestGatewaysBulkMissingCount(t *testing.T) {
 	if err := runCmd("gateways", "bulk", testFlagFactoryID, "f", testFlagFactoryKey, "k"); err == nil {
 		t.Error("expected error when --count is missing")
 	}
 }
 
-func TestSensorsAdd_MissingFlags(t *testing.T) {
+func TestSensorsAddMissingFlags(t *testing.T) {
 	if err := runCmd("sensors", "add", "5"); err == nil {
 		t.Error("expected error when sensor flags are missing")
 	}
 }
 
-func TestAnomaliesDisconnect_MissingDuration(t *testing.T) {
+func TestAnomaliesDisconnectMissingDuration(t *testing.T) {
 	if err := runCmd("anomalies", "disconnect", testGatewayUUID); err == nil {
 		t.Error("expected error when --duration is missing")
 	}
 }
 
-func TestAnomaliesNetworkDegradation_MissingDuration(t *testing.T) {
+func TestAnomaliesNetworkDegradationMissingDuration(t *testing.T) {
 	if err := runCmd("anomalies", cmdNetDegradation, testGatewayUUID); err == nil {
 		t.Error("expected error when --duration is missing")
 	}
@@ -157,36 +162,38 @@ func TestAnomaliesNetworkDegradation_MissingDuration(t *testing.T) {
 
 // ── Argument-count validation ─────────────────────────────────────────────────
 
-func TestGatewaysGet_NoArgs(t *testing.T) {
+func TestGatewaysGetNoArgs(t *testing.T) {
 	if err := runCmd("gateways", "get"); err == nil {
 		t.Error("expected error when uuid arg is missing")
 	}
 }
 
-func TestGatewaysDelete_NoArgs(t *testing.T) {
+func TestGatewaysDeleteNoArgs(t *testing.T) {
 	if err := runCmd("gateways", "delete"); err == nil {
 		t.Error("expected error when uuid arg is missing")
 	}
 }
 
-func TestSensorsAdd_NonNumericID(t *testing.T) {
+func TestSensorsAddInvalidGatewayIdentifier(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
-		// Should never reach the server — arg parsing fails first.
-		t.Error("server should not have been called")
+		if r.URL.Path != "/sim/gateways/not-a-number" {
+			t.Errorf(fmtUnexpectedPath, r.URL.Path)
+		}
+		http.Error(w, bodyNotFound, http.StatusNotFound)
 	})
 	if err := runCmd("sensors", "add", "not-a-number",
-		"--type", "temperature", "--min", "0", "--max", "100", "--algorithm", "constant"); err == nil {
-		t.Error("expected error for non-numeric gateway ID")
+		testFlagType, "temperature", "--min", "0", "--max", "100", testFlagAlgorithm, "constant"); err == nil {
+		t.Error("expected error for invalid gateway identifier")
 	}
 }
 
-func TestSensorsDelete_NonNumericID(t *testing.T) {
+func TestSensorsDeleteNonNumericID(t *testing.T) {
 	if err := runCmd("sensors", "delete", "abc"); err == nil {
 		t.Error("expected error for non-numeric sensor ID")
 	}
 }
 
-func TestAnomaliesOutlier_NonNumericID(t *testing.T) {
+func TestAnomaliesOutlierNonNumericID(t *testing.T) {
 	if err := runCmd("anomalies", "outlier", "not-a-number"); err == nil {
 		t.Error("expected error for non-numeric sensor ID")
 	}
@@ -194,7 +201,7 @@ func TestAnomaliesOutlier_NonNumericID(t *testing.T) {
 
 // ── Integration: full execution against mock server ───────────────────────────
 
-func TestGatewaysList_Integration(t *testing.T) {
+func TestGatewaysListIntegration(t *testing.T) {
 	gateways := []map[string]any{
 		{"id": 1, "managementGatewayId": testGatewayUUID, "status": "online", "model": "X", "serialNumber": "SN1", "sendFrequencyMs": 1000, "tenantId": "t1"},
 	}
@@ -210,7 +217,7 @@ func TestGatewaysList_Integration(t *testing.T) {
 	}
 }
 
-func TestGatewaysList_ServerError(t *testing.T) {
+func TestGatewaysListServerError(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "boom", http.StatusInternalServerError)
 	})
@@ -219,7 +226,7 @@ func TestGatewaysList_ServerError(t *testing.T) {
 	}
 }
 
-func TestGatewaysStart_Integration(t *testing.T) {
+func TestGatewaysStartIntegration(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/sim/gateways/uuid-1/start" {
 			t.Errorf(fmtUnexpectedPath, r.URL.Path)
@@ -231,7 +238,7 @@ func TestGatewaysStart_Integration(t *testing.T) {
 	}
 }
 
-func TestGatewaysStop_Integration(t *testing.T) {
+func TestGatewaysStopIntegration(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/sim/gateways/uuid-1/stop" {
 			t.Errorf(fmtUnexpectedPath, r.URL.Path)
@@ -243,9 +250,9 @@ func TestGatewaysStop_Integration(t *testing.T) {
 	}
 }
 
-func TestGatewaysDelete_Integration(t *testing.T) {
+func TestGatewaysDeleteIntegration(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodDelete || r.URL.Path != "/sim/gateways/uuid-1" {
+		if r.Method != http.MethodDelete || r.URL.Path != pathGatewayUUID {
 			t.Errorf(fmtUnexpectedRequest, r.Method, r.URL.Path)
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -255,12 +262,12 @@ func TestGatewaysDelete_Integration(t *testing.T) {
 	}
 }
 
-func TestSensorsList_Integration(t *testing.T) {
+func TestSensorsListIntegration(t *testing.T) {
 	sensors := []map[string]any{
-		{"id": 1, "gatewayId": 5, "sensorId": "s-uuid-1", "type": "temperature", "minRange": 0, "maxRange": 100, "algorithm": "sine_wave"},
+		{"id": 1, "gatewayId": 5, "sensorId": testSensorUUID, "type": "temperature", "minRange": 0, "maxRange": 100, "algorithm": "sine_wave"},
 	}
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/sim/gateways/5/sensors" {
+		if r.URL.Path != pathGatewaySensors {
 			t.Errorf(fmtUnexpectedPath, r.URL.Path)
 		}
 		writeJSON(w, http.StatusOK, sensors)
@@ -270,7 +277,45 @@ func TestSensorsList_Integration(t *testing.T) {
 	}
 }
 
-func TestSensorsDelete_Integration(t *testing.T) {
+func TestSensorsListUUIDIntegration(t *testing.T) {
+	sensors := []map[string]any{
+		{"id": 1, "gatewayId": 5, "sensorId": "s-uuid-1", "type": "temperature", "minRange": 0, "maxRange": 100, "algorithm": "sine_wave"},
+	}
+	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case pathGatewayUUID:
+			writeJSON(w, http.StatusOK, map[string]any{"id": 5, "managementGatewayId": testGatewayUUID})
+		case pathGatewaySensors:
+			writeJSON(w, http.StatusOK, sensors)
+		default:
+			t.Errorf(fmtUnexpectedPath, r.URL.Path)
+		}
+	})
+	if err := runCmd("sensors", "list", testGatewayUUID); err != nil {
+		t.Fatalf("sensors list by uuid failed: %v", err)
+	}
+}
+
+func TestSensorsAddUUIDIntegration(t *testing.T) {
+	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case pathGatewayUUID:
+			writeJSON(w, http.StatusOK, map[string]any{"id": 5, "managementGatewayId": testGatewayUUID})
+		case pathGatewaySensors:
+			writeJSON(w, http.StatusCreated, map[string]any{
+				"id": 1, "gatewayId": 5, "sensorId": testSensorUUID, "type": "temperature", "minRange": 0, "maxRange": 100, "algorithm": "constant",
+			})
+		default:
+			t.Errorf(fmtUnexpectedPath, r.URL.Path)
+		}
+	})
+	if err := runCmd("sensors", "add", testGatewayUUID,
+		testFlagType, "temperature", "--min", "0", "--max", "100", testFlagAlgorithm, "constant"); err != nil {
+		t.Fatalf("sensors add by uuid failed: %v", err)
+	}
+}
+
+func TestSensorsDeleteIntegration(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete || r.URL.Path != "/sim/sensors/99" {
 			t.Errorf(fmtUnexpectedRequest, r.Method, r.URL.Path)
@@ -282,7 +327,7 @@ func TestSensorsDelete_Integration(t *testing.T) {
 	}
 }
 
-func TestAnomaliesDisconnect_Integration(t *testing.T) {
+func TestAnomaliesDisconnectIntegration(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/sim/gateways/uuid-1/anomaly/disconnect" {
 			t.Errorf(fmtUnexpectedPath, r.URL.Path)
@@ -299,7 +344,7 @@ func TestAnomaliesDisconnect_Integration(t *testing.T) {
 	}
 }
 
-func TestAnomaliesNetworkDegradation_Integration(t *testing.T) {
+func TestAnomaliesNetworkDegradationIntegration(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/sim/gateways/uuid-1/anomaly/network-degradation" {
 			t.Errorf(fmtUnexpectedPath, r.URL.Path)
@@ -319,7 +364,7 @@ func TestAnomaliesNetworkDegradation_Integration(t *testing.T) {
 	}
 }
 
-func TestAnomaliesOutlier_Integration(t *testing.T) {
+func TestAnomaliesOutlierIntegration(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/sim/sensors/42/anomaly/outlier" {
 			t.Errorf(fmtUnexpectedPath, r.URL.Path)
@@ -338,7 +383,7 @@ func TestAnomaliesOutlier_Integration(t *testing.T) {
 
 // ── Error paths (spinner.Fail + return err) ───────────────────────────────────
 
-func TestGatewaysList_EmptyResult(t *testing.T) {
+func TestGatewaysListEmptyResult(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, []any{})
 	})
@@ -347,7 +392,7 @@ func TestGatewaysList_EmptyResult(t *testing.T) {
 	}
 }
 
-func TestGatewaysGet_ServerError(t *testing.T) {
+func TestGatewaysGetServerError(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, bodyNotFound, http.StatusNotFound)
 	})
@@ -356,7 +401,7 @@ func TestGatewaysGet_ServerError(t *testing.T) {
 	}
 }
 
-func TestGatewaysCreate_ServerError(t *testing.T) {
+func TestGatewaysCreateServerError(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 	})
@@ -366,7 +411,7 @@ func TestGatewaysCreate_ServerError(t *testing.T) {
 	}
 }
 
-func TestGatewaysBulk_ServerError(t *testing.T) {
+func TestGatewaysBulkServerError(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "server error", http.StatusInternalServerError)
 	})
@@ -376,7 +421,7 @@ func TestGatewaysBulk_ServerError(t *testing.T) {
 	}
 }
 
-func TestGatewaysBulk_PartialErrors(t *testing.T) {
+func TestGatewaysBulkPartialErrors(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMultiStatus, map[string]any{
 			"gateways": []any{map[string]any{"id": 1}},
@@ -389,7 +434,7 @@ func TestGatewaysBulk_PartialErrors(t *testing.T) {
 	}
 }
 
-func TestGatewaysStart_ServerError(t *testing.T) {
+func TestGatewaysStartServerError(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "conflict", http.StatusConflict)
 	})
@@ -398,7 +443,7 @@ func TestGatewaysStart_ServerError(t *testing.T) {
 	}
 }
 
-func TestGatewaysStop_ServerError(t *testing.T) {
+func TestGatewaysStopServerError(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, bodyNotFound, http.StatusNotFound)
 	})
@@ -407,7 +452,7 @@ func TestGatewaysStop_ServerError(t *testing.T) {
 	}
 }
 
-func TestGatewaysDelete_ServerError(t *testing.T) {
+func TestGatewaysDeleteServerError(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, bodyNotFound, http.StatusNotFound)
 	})
@@ -416,7 +461,7 @@ func TestGatewaysDelete_ServerError(t *testing.T) {
 	}
 }
 
-func TestSensorsAdd_ServerError(t *testing.T) {
+func TestSensorsAddServerError(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, bodyNotFound, http.StatusNotFound)
 	})
@@ -426,7 +471,7 @@ func TestSensorsAdd_ServerError(t *testing.T) {
 	}
 }
 
-func TestSensorsList_EmptyResult(t *testing.T) {
+func TestSensorsListEmptyResult(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, []any{})
 	})
@@ -435,7 +480,7 @@ func TestSensorsList_EmptyResult(t *testing.T) {
 	}
 }
 
-func TestSensorsList_ServerError(t *testing.T) {
+func TestSensorsListServerError(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, bodyNotFound, http.StatusNotFound)
 	})
@@ -444,7 +489,7 @@ func TestSensorsList_ServerError(t *testing.T) {
 	}
 }
 
-func TestSensorsDelete_ServerError(t *testing.T) {
+func TestSensorsDeleteServerError(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, bodyNotFound, http.StatusNotFound)
 	})
@@ -453,7 +498,7 @@ func TestSensorsDelete_ServerError(t *testing.T) {
 	}
 }
 
-func TestAnomaliesDisconnect_ServerError(t *testing.T) {
+func TestAnomaliesDisconnectServerError(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, bodyNotFound, http.StatusNotFound)
 	})
@@ -462,7 +507,7 @@ func TestAnomaliesDisconnect_ServerError(t *testing.T) {
 	}
 }
 
-func TestAnomaliesNetworkDegradation_ServerError(t *testing.T) {
+func TestAnomaliesNetworkDegradationServerError(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, bodyNotFound, http.StatusNotFound)
 	})
@@ -471,7 +516,7 @@ func TestAnomaliesNetworkDegradation_ServerError(t *testing.T) {
 	}
 }
 
-func TestAnomaliesOutlier_ServerError(t *testing.T) {
+func TestAnomaliesOutlierServerError(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, bodyNotFound, http.StatusNotFound)
 	})
@@ -631,31 +676,6 @@ func TestShellExitImmediately(t *testing.T) {
 	}
 }
 
-func TestPrintPromptRawOutput(t *testing.T) {
-	originalRawOutput := pterm.RawOutput
-	pterm.RawOutput = true
-	t.Cleanup(func() {
-		pterm.RawOutput = originalRawOutput
-	})
-
-	out := captureStdout(t, printPrompt)
-	if out != "sim-cli> " {
-		t.Fatalf("prompt = %q, want %q", out, "sim-cli> ")
-	}
-}
-
-func TestPrintWelcomeBannerRawModeDoesNotCrash(t *testing.T) {
-	originalRawOutput := pterm.RawOutput
-	pterm.RawOutput = true
-	t.Cleanup(func() {
-		pterm.RawOutput = originalRawOutput
-	})
-
-	// In non-TTY/raw mode the renderer may bypass direct stdout writes,
-	// but the banner must still render without panicking.
-	printWelcomeBanner()
-}
-
 func TestStatusStyleVariants(t *testing.T) {
 	originalRawOutput := pterm.RawOutput
 	pterm.RawOutput = false
@@ -674,7 +694,7 @@ func TestStatusStyleVariants(t *testing.T) {
 	}
 }
 
-func TestPrintSensorTable_EmptySlice_NoOutput(t *testing.T) {
+func TestPrintSensorTableEmptySliceNoOutput(t *testing.T) {
 	out := captureStdout(t, func() {
 		printSensorTable([]client.Sensor{})
 	})

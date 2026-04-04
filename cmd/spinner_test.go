@@ -6,7 +6,7 @@ import (
 	"github.com/pterm/pterm"
 )
 
-func TestStartSpinner_RawOutputReturnsNoop(t *testing.T) {
+func TestStartSpinnerRawOutputReturnsNoop(t *testing.T) {
 	prevRaw := pterm.RawOutput
 	pterm.RawOutput = true
 	t.Cleanup(func() {
@@ -24,7 +24,7 @@ func TestStartSpinner_RawOutputReturnsNoop(t *testing.T) {
 	sp.Warning("warn")
 }
 
-func TestPtermSpinner_NilInnerIsSafe(t *testing.T) {
+func TestPtermSpinnerNilInnerIsSafe(t *testing.T) {
 	sp := ptermSpinner{}
 
 	sp.Success("ok")
@@ -32,7 +32,7 @@ func TestPtermSpinner_NilInnerIsSafe(t *testing.T) {
 	sp.Warning("warn")
 }
 
-func TestNoopSpinner_DirectMethods(t *testing.T) {
+func TestNoopSpinnerDirectMethods(t *testing.T) {
 	var sp noopSpinner
 
 	sp.Success("ok")
