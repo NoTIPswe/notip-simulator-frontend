@@ -11,6 +11,11 @@ import (
 	"testing"
 )
 
+const (
+	fmtUnexpectedError = "unexpected error: %v"
+	flagSerialArg      = "--serial"
+)
+
 // readBody parses the request body into a generic map for field inspection.
 func readBody(t *testing.T, r *http.Request) map[string]any {
 	t.Helper()
@@ -47,28 +52,28 @@ func checkAbsent(t *testing.T, body map[string]any, key string) {
 	}
 }
 
-// ── gateways create ───────────────────────────────────────────────────────────
+// -- gateways create ----------------------------------------------------------
 
-func TestGatewaysCreate_FlagToJSONMapping(t *testing.T) {
+func TestGatewaysCreateFlagToJSONMapping(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/sim/gateways" {
-			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			t.Errorf(fmtUnexpectedRequest, r.Method, r.URL.Path)
 		}
 		body := readBody(t, r)
-		checkKey(t, body, "factoryId", "fac-42")           // --factory-id
-		checkKey(t, body, "factoryKey", "secret-key")      // --factory-key
-		checkKey(t, body, "serialNumber", "SN-XYZ")        // --serial
-		checkKey(t, body, "model", "GW-PRO")               // --model
-		checkKey(t, body, "firmwareVersion", "3.0.1")      // --firmware
-		checkKey(t, body, "sendFrequencyMs", float64(250)) // --freq
+		checkKey(t, body, "factoryId", "fac-42")
+		checkKey(t, body, "factoryKey", "secret-key")
+		checkKey(t, body, "serialNumber", "SN-XYZ")
+		checkKey(t, body, "model", "GW-PRO")
+		checkKey(t, body, "firmwareVersion", "3.0.1")
+		checkKey(t, body, "sendFrequencyMs", float64(250))
 
 		writeJSON(w, http.StatusCreated, map[string]any{"id": 1})
 	})
 
 	err := runCmd("gateways", "create",
-		"--factory-id", "fac-42",
-		"--factory-key", "secret-key",
-		"--serial", "SN-XYZ",
+		testFlagFactoryID, "fac-42",
+		testFlagFactoryKey, "secret-key",
+		flagSerialArg, "SN-XYZ",
 		"--model", "GW-PRO",
 		"--firmware", "3.0.1",
 		"--freq", "250",
@@ -78,50 +83,47 @@ func TestGatewaysCreate_FlagToJSONMapping(t *testing.T) {
 	}
 }
 
-func TestGatewaysCreate_DefaultFreq_Is1000(t *testing.T) {
+func TestGatewaysCreateDefaultFreqIs1000(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		body := readBody(t, r)
-		// --freq defaults to 1000 ms when not provided
 		checkKey(t, body, "sendFrequencyMs", float64(1000))
 		writeJSON(w, http.StatusCreated, map[string]any{"id": 1})
 	})
 
 	err := runCmd("gateways", "create",
-		"--factory-id", "f",
-		"--factory-key", "k",
-		"--serial", "SN",
+		testFlagFactoryID, "f",
+		testFlagFactoryKey, "k",
+		flagSerialArg, "SN",
 	)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(fmtUnexpectedError, err)
 	}
 }
 
-func TestGatewaysCreate_OptionalFields_OmittedWhenNotProvided(t *testing.T) {
+func TestGatewaysCreateOptionalFieldsOmittedWhenNotProvided(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		body := readBody(t, r)
-		// model and firmware are optional; when not passed they must be absent
-		// (omitempty), not sent as empty strings
 		checkAbsent(t, body, "model")
 		checkAbsent(t, body, "firmwareVersion")
 		writeJSON(w, http.StatusCreated, map[string]any{"id": 1})
 	})
 
 	err := runCmd("gateways", "create",
-		"--factory-id", "f",
-		"--factory-key", "k",
-		"--serial", "SN",
+		testFlagFactoryID, "f",
+		testFlagFactoryKey, "k",
+		flagSerialArg, "SN",
 	)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(fmtUnexpectedError, err)
 	}
 }
 
-// ── gateways bulk ─────────────────────────────────────────────────────────────
+// -- gateways bulk ------------------------------------------------------------
 
-func TestGatewaysBulk_FlagToJSONMapping(t *testing.T) {
+func TestGatewaysBulkFlagToJSONMapping(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/sim/gateways/bulk" {
-			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			t.Errorf(fmtUnexpectedRequest, r.Method, r.URL.Path)
 		}
 		body := readBody(t, r)
 		checkKey(t, body, "count", float64(5))
@@ -139,8 +141,8 @@ func TestGatewaysBulk_FlagToJSONMapping(t *testing.T) {
 
 	err := runCmd("gateways", "bulk",
 		"--count", "5",
-		"--factory-id", "fac-bulk",
-		"--factory-key", "key-bulk",
+		testFlagFactoryID, "fac-bulk",
+		testFlagFactoryKey, "key-bulk",
 		"--model", "GW-MINI",
 		"--firmware", "1.2.3",
 		"--freq", "500",
@@ -150,12 +152,12 @@ func TestGatewaysBulk_FlagToJSONMapping(t *testing.T) {
 	}
 }
 
-// ── gateways get ─────────────────────────────────────────────────────────────
+// -- gateways get -------------------------------------------------------------
 
-func TestGatewaysGet_Integration(t *testing.T) {
+func TestGatewaysGetIntegration(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet || r.URL.Path != "/sim/gateways/uuid-get-1" {
-			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			t.Errorf(fmtUnexpectedRequest, r.Method, r.URL.Path)
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
 			"id":                  42,
@@ -176,7 +178,7 @@ func TestGatewaysGet_Integration(t *testing.T) {
 	}
 }
 
-func TestGatewaysGet_NotFound(t *testing.T) {
+func TestGatewaysGetNotFound(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not found", http.StatusNotFound)
 	})
@@ -185,27 +187,20 @@ func TestGatewaysGet_NotFound(t *testing.T) {
 	}
 }
 
-// ── sensors add ───────────────────────────────────────────────────────────────
-//
-// CRITICAL: --min/--max CLI flags must map to "minRange"/"maxRange" in JSON.
-// If this mapping breaks the backend will reject the request or use wrong defaults.
+// -- sensors add --------------------------------------------------------------
 
-func TestSensorsAdd_FlagToJSONMapping(t *testing.T) {
+func TestSensorsAddFlagToJSONMapping(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/sim/gateways/5/sensors" {
-			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			t.Errorf(fmtUnexpectedRequest, r.Method, r.URL.Path)
 		}
 		body := readBody(t, r)
 
-		// --type → "type"
 		checkKey(t, body, "type", "humidity")
-		// --min → "minRange" (NOT "min")
 		checkKey(t, body, "minRange", float64(10))
 		checkAbsent(t, body, "min")
-		// --max → "maxRange" (NOT "max")
 		checkKey(t, body, "maxRange", float64(90))
 		checkAbsent(t, body, "max")
-		// --algorithm → "algorithm"
 		checkKey(t, body, "algorithm", "uniform_random")
 
 		writeJSON(w, http.StatusCreated, map[string]any{
@@ -225,7 +220,7 @@ func TestSensorsAdd_FlagToJSONMapping(t *testing.T) {
 	}
 }
 
-func TestSensorsAdd_NegativeMinRange(t *testing.T) {
+func TestSensorsAddNegativeMinRange(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		body := readBody(t, r)
 		checkKey(t, body, "minRange", float64(-40))
@@ -244,29 +239,28 @@ func TestSensorsAdd_NegativeMinRange(t *testing.T) {
 	}
 }
 
-// ── anomalies disconnect ──────────────────────────────────────────────────────
+// -- anomalies disconnect -----------------------------------------------------
 
-func TestAnomaliesDisconnect_DurationFieldName(t *testing.T) {
+func TestAnomaliesDisconnectDurationFieldName(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/sim/gateways/uuid-dc/anomaly/disconnect" {
 			t.Errorf("path = %s", r.URL.Path)
 		}
 		body := readBody(t, r)
-		// Backend expects "duration_seconds", not "duration"
 		checkKey(t, body, "duration_seconds", float64(10))
 		checkAbsent(t, body, "duration")
 		checkAbsent(t, body, "durationSeconds")
 		w.WriteHeader(http.StatusNoContent)
 	})
 
-	if err := runCmd("anomalies", "disconnect", "uuid-dc", "--duration", "10"); err != nil {
+	if err := runCmd("anomalies", "disconnect", "uuid-dc", testFlagDuration, "10"); err != nil {
 		t.Fatalf("anomalies disconnect failed: %v", err)
 	}
 }
 
-// ── anomalies network-degradation ─────────────────────────────────────────────
+// -- anomalies network-degradation -------------------------------------------
 
-func TestAnomaliesNetworkDegradation_FieldNames(t *testing.T) {
+func TestAnomaliesNetworkDegradationFieldNames(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		body := readBody(t, r)
 		checkKey(t, body, "duration_seconds", float64(20))
@@ -276,7 +270,7 @@ func TestAnomaliesNetworkDegradation_FieldNames(t *testing.T) {
 	})
 
 	err := runCmd("anomalies", "network-degradation", "uuid-nd",
-		"--duration", "20",
+		testFlagDuration, "20",
 		"--packet-loss", "0.5",
 	)
 	if err != nil {
@@ -284,31 +278,29 @@ func TestAnomaliesNetworkDegradation_FieldNames(t *testing.T) {
 	}
 }
 
-func TestAnomaliesNetworkDegradation_PacketLossOmitted_WhenNotProvided(t *testing.T) {
+func TestAnomaliesNetworkDegradationPacketLossOmittedWhenNotProvided(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		body := readBody(t, r)
-		// --packet-loss not passed → field absent → backend uses its default (0.3)
 		checkAbsent(t, body, "packet_loss_pct")
 		w.WriteHeader(http.StatusNoContent)
 	})
 
-	err := runCmd("anomalies", "network-degradation", "uuid-nd", "--duration", "5")
+	err := runCmd("anomalies", "network-degradation", "uuid-nd", testFlagDuration, "5")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(fmtUnexpectedError, err)
 	}
 }
 
-// ── anomalies outlier ─────────────────────────────────────────────────────────
+// -- anomalies outlier --------------------------------------------------------
 
-func TestAnomaliesOutlier_ValueOmitted_WhenNotProvided(t *testing.T) {
+func TestAnomaliesOutlierValueOmittedWhenNotProvided(t *testing.T) {
 	newMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		body := readBody(t, r)
-		// --value not passed → field must be absent (nil pointer + omitempty)
 		checkAbsent(t, body, "value")
 		w.WriteHeader(http.StatusNoContent)
 	})
 
 	if err := runCmd("anomalies", "outlier", "10"); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(fmtUnexpectedError, err)
 	}
 }

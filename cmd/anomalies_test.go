@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func TestMustMarkRequired_Success(t *testing.T) {
+func TestMustMarkRequiredSuccess(t *testing.T) {
 	cmd := &cobra.Command{Use: "test"}
 	cmd.Flags().String("duration", "", "")
 
@@ -21,7 +21,7 @@ func TestMustMarkRequired_Success(t *testing.T) {
 	}
 }
 
-func TestMustMarkRequired_ErrorTriggersExit(t *testing.T) {
+func TestMustMarkRequiredErrorTriggersExit(t *testing.T) {
 	cmd := &cobra.Command{Use: "test"}
 	called := false
 	code := 0

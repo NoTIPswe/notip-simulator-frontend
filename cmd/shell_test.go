@@ -7,7 +7,7 @@ import (
 	"github.com/pterm/pterm"
 )
 
-func TestPrintPrompt_RawOutput(t *testing.T) {
+func TestPrintPromptRawOutput(t *testing.T) {
 	prevRaw := pterm.RawOutput
 	pterm.RawOutput = true
 	t.Cleanup(func() {
@@ -20,7 +20,7 @@ func TestPrintPrompt_RawOutput(t *testing.T) {
 	}
 }
 
-func TestPrintWelcomeBanner_RawOutput(t *testing.T) {
+func TestPrintWelcomeBannerRawOutput(t *testing.T) {
 	prevRaw := pterm.RawOutput
 	pterm.RawOutput = true
 	t.Cleanup(func() {
@@ -30,7 +30,7 @@ func TestPrintWelcomeBanner_RawOutput(t *testing.T) {
 	_ = captureStdout(t, printWelcomeBanner)
 }
 
-func TestPrintPrompt_NonRawOutput(t *testing.T) {
+func TestPrintPromptNonRawOutput(t *testing.T) {
 	prevRaw := pterm.RawOutput
 	pterm.RawOutput = false
 	t.Cleanup(func() {
@@ -43,7 +43,7 @@ func TestPrintPrompt_NonRawOutput(t *testing.T) {
 	}
 }
 
-func TestPrintWelcomeBanner_NonRawOutput(t *testing.T) {
+func TestPrintWelcomeBannerNonRawOutput(t *testing.T) {
 	prevRaw := pterm.RawOutput
 	pterm.RawOutput = false
 	t.Cleanup(func() {

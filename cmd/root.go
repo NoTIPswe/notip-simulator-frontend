@@ -23,7 +23,6 @@ func Execute() error {
 
 func init() {
 	// Disable PTerm styling when stdout is not a TTY (e.g., CI pipelines,
-	// docker compose run without -it) to avoid raw ANSI escape sequences.
 	if !term.IsTerminal(int(os.Stdout.Fd())) {
 		pterm.DisableStyling()
 		pterm.DisableColor()
