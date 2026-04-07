@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"github.com/pterm/pterm"
 	"github.com/pterm/pterm/putils"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 var shellCmd = &cobra.Command{
@@ -25,6 +27,14 @@ restarting the container. Type 'help' for available commands, 'exit' to quit.`,
 		rootCmd.SilenceUsage = true
 		defer func() { rootCmd.SilenceUsage = false }()
 
+		if canUseLineEditor() {
+			err := runShellWithLineEditor()
+			if err == nil {
+				return nil
+			}
+			pterm.Warning.Printf("line editor disabled: %v\n", err)
+		}
+
 		reader := bufio.NewReader(os.Stdin)
 		for {
 			printPrompt()
@@ -38,29 +48,84 @@ restarting the container. Type 'help' for available commands, 'exit' to quit.`,
 				return nil
 			}
 
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-			if line == "exit" || line == "quit" {
-				pterm.Info.Println("Goodbye!")
+			if shouldExit := processShellLine(line); shouldExit {
 				return nil
-			}
-
-			// Prevent the user from nesting shells.
-			parts := strings.Fields(line)
-			if parts[0] == "shell" {
-				pterm.Warning.Println("Already inside a shell session.")
-				continue
-			}
-
-			resetAllCommandFlags(rootCmd)
-			rootCmd.SetArgs(parts)
-			if execErr := rootCmd.Execute(); execErr != nil {
-				pterm.Error.Println(execErr)
 			}
 		}
 	},
+}
+
+func canUseLineEditor() bool {
+	return term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd()))
+}
+
+func runShellWithLineEditor() error {
+	fd := int(os.Stdin.Fd())
+	oldState, err := term.MakeRaw(fd)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = term.Restore(fd, oldState)
+	}()
+
+	lineEditor := term.NewTerminal(struct {
+		io.Reader
+		io.Writer
+	}{
+		Reader: os.Stdin,
+		Writer: os.Stdout,
+	}, "sim-cli> ")
+
+	for {
+		line, readErr := lineEditor.ReadLine()
+		if readErr != nil {
+			if errors.Is(readErr, io.EOF) {
+				fmt.Println()
+				pterm.Info.Println("Goodbye!")
+				return nil
+			}
+			return readErr
+		}
+
+		// Leave raw mode while the command runs so output renders correctly.
+		if err := term.Restore(fd, oldState); err != nil {
+			return err
+		}
+		shouldExit := processShellLine(line)
+		if _, err := term.MakeRaw(fd); err != nil {
+			return err
+		}
+		if shouldExit {
+			return nil
+		}
+	}
+}
+
+func processShellLine(line string) bool {
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return false
+	}
+	if line == "exit" || line == "quit" {
+		pterm.Info.Println("Goodbye!")
+		return true
+	}
+
+	// Prevent the user from nesting shells.
+	args := strings.Fields(line)
+	if args[0] == "shell" {
+		pterm.Warning.Println("Already inside a shell session.")
+		return false
+	}
+
+	resetAllCommandFlags(rootCmd)
+	rootCmd.SetArgs(args)
+	if err := rootCmd.Execute(); err != nil {
+		pterm.Error.Println(err)
+	}
+
+	return false
 }
 
 func printPrompt() {
