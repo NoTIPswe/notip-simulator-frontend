@@ -1,3 +1,22 @@
+# [1.2.0](https://github.com/NoTIPswe/notip-simulator-cli/compare/v1.1.0...v1.2.0) (2026-04-09)
+
+
+### Bug Fixes
+
+* add tests for shell command line editor and context handling in client ([3fcb4bb](https://github.com/NoTIPswe/notip-simulator-cli/commit/3fcb4bb0f1975d895c2b4074066923547f122d58))
+* bugs ([8965e50](https://github.com/NoTIPswe/notip-simulator-cli/commit/8965e505ace3e7599f4ced80b9f8790077543f7b))
+* enhance shell command to support line editor and improve command processing ([a37684d](https://github.com/NoTIPswe/notip-simulator-cli/commit/a37684d6e756e063e3770e0effd4429b418c1918))
+* remove serial number from gateway creation and related tests ([b0c52a8](https://github.com/NoTIPswe/notip-simulator-cli/commit/b0c52a87247244625ef63413ef3207e9e0ca10a0))
+* remove serial number from gateway list and detail outputs ([79ada90](https://github.com/NoTIPswe/notip-simulator-cli/commit/79ada90ee78c9fd38d363247cbe1093775db5651))
+* simplify shell command line processing and improve test coverage ([d7a213e](https://github.com/NoTIPswe/notip-simulator-cli/commit/d7a213e6a8ff4eccd13e56e521465de0f88e4bee))
+* update AddSensorRequest documentation to clarify gateway ID as UUID ([b9b733d](https://github.com/NoTIPswe/notip-simulator-cli/commit/b9b733d6ea1a0b78999925059ed8bce694493559))
+* update README and tests to use UUIDs for gateways and sensors ([c76758e](https://github.com/NoTIPswe/notip-simulator-cli/commit/c76758e407241c00c25d648ed429177dce168f30))
+
+
+### Features
+
+* make model, firmware, and frequency required flags for gateways commands ([af4a284](https://github.com/NoTIPswe/notip-simulator-cli/commit/af4a2840227c830d76527c55767990e942d9d50d))
+
 # [1.1.0](https://github.com/NoTIPswe/notip-simulator-cli/compare/v1.0.0...v1.1.0) (2026-04-04)
 
 
